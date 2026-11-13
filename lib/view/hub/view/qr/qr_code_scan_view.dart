@@ -1,6 +1,7 @@
 import 'package:attendance_check/models/subject_schedule.dart';
 import 'package:attendance_check/view/hub/model/qr/qr_code_model.dart';
 import 'package:flutter/material.dart';
+import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:provider/provider.dart';
 import 'package:table_calendar/table_calendar.dart';
 
@@ -32,7 +33,7 @@ class _DataEntryWidget extends StatelessWidget {
           ? const Center(child: CircularProgressIndicator())
           : model.isTeacher
               ? const ScheduleTeacherView()
-              : const Center(child: QrScannerView()),
+              : const QrScannerView(),
     );
   }
 }
@@ -125,7 +126,7 @@ class ScheduleTeacherWidget extends StatelessWidget {
   Widget build(BuildContext context) {
     final model = Provider.of<QrCodeModel>(context);
     return GestureDetector(
-      onTap: () => model.goQrGeneration(context),
+      onTap: () => model.goQrGeneration(context, schedule),
       child: Card(
         elevation: 4.0,
         shape: RoundedRectangleBorder(
@@ -200,20 +201,58 @@ class QrScannerView extends StatelessWidget {
   Widget build(BuildContext context) {
     final model = Provider.of<QrCodeModel>(context);
 
-    return Scaffold(
-      body: Column(
-        children: <Widget>[
-          Expanded(
-            flex: 1,
-            child: Center(
-              child: Text(
-                'Сканируйте QR-код',
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-              ),
+    if (model.scanMessage != null) {
+      return Padding(
+        padding: const EdgeInsets.all(24.0),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              model.scanSuccess ? Icons.check_circle : Icons.error,
+              color: model.scanSuccess ? Colors.green : Colors.red,
+              size: 96,
             ),
+            const SizedBox(height: 16),
+            Text(
+              model.scanMessage!,
+              style: const TextStyle(fontSize: 18),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 24),
+            ElevatedButton(
+              onPressed: model.resetScan,
+              child: const Text('Сканировать снова'),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return Column(
+      children: <Widget>[
+        const Padding(
+          padding: EdgeInsets.all(16.0),
+          child: Text(
+            'Наведите камеру на QR-код преподавателя',
+            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+            textAlign: TextAlign.center,
           ),
-        ],
-      ),
+        ),
+        Expanded(
+          child: Stack(
+            alignment: Alignment.center,
+            children: [
+              MobileScanner(
+                onDetect: (capture) {
+                  if (capture.barcodes.isEmpty) return;
+                  model.onQrScanned(capture.barcodes.first.rawValue);
+                },
+              ),
+              if (model.isProcessing) const CircularProgressIndicator(),
+            ],
+          ),
+        ),
+      ],
     );
   }
 }

@@ -48,6 +48,10 @@ class ServicesModel extends ChangeNotifier {
     context.push(NavigatorRouse.settings);
   }
 
+  void goMap(BuildContext context) {
+    context.push(NavigatorRouse.map);
+  }
+
   void goMagazine(BuildContext context) {
     context.push(NavigatorRouse.magazine);
   }

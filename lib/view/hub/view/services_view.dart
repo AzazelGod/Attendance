@@ -71,6 +71,12 @@ class _DataEntryWidget extends StatelessWidget {
               label: 'Настройки',
               onTap: () => model.goSettings(context),
             ),
+            ServiceCard(
+              color: Colors.teal,
+              icon: Icons.map_outlined,
+              label: 'Карта',
+              onTap: () => model.goMap(context),
+            ),
             if (model.isStudentLeader && !model.isTeacher)
               ServiceCard(
                 color: Colors.blue,

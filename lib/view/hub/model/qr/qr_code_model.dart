@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:attendance_check/models/subject_schedule.dart';
 import 'package:attendance_check/utils/navigator_app.dart';
 import 'package:flutter/material.dart';
@@ -36,7 +37,8 @@ class QrCodeModel extends ChangeNotifier {
       final role = await firebaseService.getUserField('rule');
       if (role != null) {
         _userApp.setRule(role);
-        _isTeacher = role == "Преподаватель";
+        // В базе роль сохраняется как 'Преподователь'
+        _isTeacher = role == "Преподователь" || role == "Преподаватель";
         if (_isTeacher) {
           await getTeacherSchedule();
         }
@@ -93,16 +95,70 @@ class QrCodeModel extends ChangeNotifier {
     ).toList();
   }
 
-  void goQrGeneration(BuildContext context){
-    context.push(NavigatorRouse.qrGeneration);
+  void goQrGeneration(BuildContext context, SubjectSchedule schedule){
+    context.push(NavigatorRouse.qrGeneration, extra: schedule);
   }
 
-  String _qrCodeResult = '';
+  // ---- Сканирование QR студентом ----
 
-  String get qrCodeResult => _qrCodeResult;
+  // Сколько живёт QR-код: 15 с обновление + запас на расхождение часов
+  static const Duration _qrMaxAge = Duration(seconds: 30);
 
-  void setQrCodeResult(String result) {
-    _qrCodeResult = result;
+  bool _isProcessing = false;
+  String? _scanMessage;
+  bool _scanSuccess = false;
+
+  bool get isProcessing => _isProcessing;
+  String? get scanMessage => _scanMessage;
+  bool get scanSuccess => _scanSuccess;
+
+  Future<void> onQrScanned(String? rawValue) async {
+    if (_isProcessing || _scanMessage != null || rawValue == null) return;
+    _isProcessing = true;
+    notifyListeners();
+    try {
+      final Map<String, dynamic> data;
+      try {
+        data = jsonDecode(rawValue) as Map<String, dynamic>;
+      } catch (_) {
+        throw Exception('Это не QR-код занятия');
+      }
+      if (data['type'] != 'attendance') {
+        throw Exception('Это не QR-код занятия');
+      }
+
+      final createdAt = DateTime.fromMillisecondsSinceEpoch(data['ts'] as int);
+      if (DateTime.now().difference(createdAt).abs() > _qrMaxAge) {
+        throw Exception('QR-код устарел, отсканируйте текущий код');
+      }
+
+      final userData = await firebaseService.getUserData();
+      final userGroup = userData?['group'] ?? '';
+      final userEmail = userData?['email'] ?? '';
+      if (userGroup != data['group']) {
+        throw Exception('Это занятие другой группы');
+      }
+
+      final classTime = DateTime.parse(data['classTime'] as String);
+      final date = classTime.toString().split(' ')[0].replaceAll('-', ' ');
+      final user = UserApp()..setEmail(userEmail);
+      await firebaseService.saveUserStatusToFirestore(
+          userGroup, data['subject'], date, classTime, [user], {userEmail: '+'});
+
+      _scanSuccess = true;
+      _scanMessage = 'Вы отмечены на занятии «${data['subject']}»';
+    } catch (e) {
+      _scanSuccess = false;
+      _scanMessage = e.toString().replaceFirst('Exception: ', '');
+    } finally {
+      _isProcessing = false;
+      notifyListeners();
+    }
+  }
+
+  void resetScan() {
+    _scanMessage = null;
+    _scanSuccess = false;
     notifyListeners();
   }
 }

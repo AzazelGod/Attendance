@@ -8,6 +8,7 @@ import 'package:attendance_check/view/hub/view/qr/qr_generation_view.dart';
 import 'package:attendance_check/view/hub/view/services/disciplines_view.dart';
 import 'package:attendance_check/view/hub/view/services/group_list_view.dart';
 import 'package:attendance_check/view/hub/view/services/instructions_view.dart';
+import 'package:attendance_check/view/hub/view/services/map_view.dart';
 import 'package:attendance_check/view/hub/view/services/magazine/magazine_view.dart';
 import 'package:attendance_check/view/hub/view/services/magazine/tag_user_view.dart';
 import 'package:attendance_check/view/hub/view/services/schedule_view.dart';
@@ -27,6 +28,7 @@ abstract class NavigatorRouse {
   static const String magazine = "/hub/magazine";
   static const String tagUser = "/hub/magazine/subjectDetail";
   static const String qrGeneration = "/hub/qrGeneretion";
+  static const String map = "/hub/map";
 }
 
 class NavigatorApp {
@@ -43,8 +45,15 @@ class NavigatorApp {
       GoRoute(path: NavigatorRouse.groupList, builder: (context, state) => GroupListView()),
       GoRoute(path: NavigatorRouse.disciplines, builder: (context, state) => DisciplinesView()),
       GoRoute(path: NavigatorRouse.settings, builder: (context, state) => SettingsView()),
+      GoRoute(path: NavigatorRouse.map, builder: (context, state) => MapView()),
       GoRoute(path: NavigatorRouse.magazine, builder: (context, state) => MagazineView()),
-      GoRoute(path: NavigatorRouse.qrGeneration, builder: (context, state) => QrGenerationView()),
+      GoRoute(
+        path: NavigatorRouse.qrGeneration,
+        builder: (context, state) {
+          final subject = state.extra as SubjectSchedule;
+          return QrGenerationView(subject: subject);
+        },
+      ),
       GoRoute(
         path: NavigatorRouse.tagUser,
         builder: (context, state) {
