@@ -1,4 +1,5 @@
 import 'package:attendance_check/models/discipline.dart';
+import 'package:attendance_check/models/user_app.dart';
 import 'package:attendance_check/services/firebase_service.dart';
 import 'package:flutter/material.dart';
 
@@ -18,17 +19,20 @@ class DisciplinesModel extends ChangeNotifier {
       _isLoading = true;
       notifyListeners();
 
-      _userGroup = (await firebaseService.getUserField('group'))!;
-      final data = await firebaseService.getAllDisciplines(_userGroup);
-      if (data != null) {
-        _disciplines = data.map((doc) {
-          return Discipline(
-            title: doc['title'] ?? '',
-            hours: doc['hours'] ?? 0,
-            assessmentType: Discipline.assessmentTypeFromString(doc['assessmentType'] ?? ''),
-          );
-        }).toList();
-      }
+      // Предметы берутся из привязок group_subjects:
+      // студенту — по его группе, преподавателю — те, что он ведёт
+      final user = UserApp.fromMap(await firebaseService.getUserData() ?? {});
+      _userGroup = user.group;
+      final groupSubjects = user.isTeacher
+          ? await firebaseService.getGroupSubjectsForTeacher(firebaseService.getCurrentUser()!.uid)
+          : await firebaseService.getGroupSubjects(_userGroup);
+      _disciplines = groupSubjects.map((gs) {
+        return Discipline(
+          title: user.isTeacher ? '${gs.subjectTitle} (${gs.group})' : gs.subjectTitle,
+          hours: gs.hours,
+          assessmentType: gs.assessmentType,
+        );
+      }).toList();
     } catch (e) {
       debugPrint('Ошибка при загрузке дисциплин: $e');
     } finally {

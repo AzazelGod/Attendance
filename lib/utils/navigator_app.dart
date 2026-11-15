@@ -4,6 +4,12 @@ import 'package:attendance_check/view/entrance/view/add_info_in_account_view.dar
 import 'package:attendance_check/view/entrance/view/auth_view.dart';
 import 'package:attendance_check/view/entrance/view/registr_view.dart';
 import 'package:attendance_check/view/hub/view/hub_view.dart';
+import 'package:attendance_check/view/hub/view/services/admin/admin_group_subjects_view.dart';
+import 'package:attendance_check/view/hub/view/services/admin/admin_groups_view.dart';
+import 'package:attendance_check/view/hub/view/services/admin/admin_lessons_view.dart';
+import 'package:attendance_check/view/hub/view/services/admin/admin_schedule_view.dart';
+import 'package:attendance_check/view/hub/view/services/admin/admin_subjects_view.dart';
+import 'package:attendance_check/view/hub/view/services/admin/admin_users_view.dart';
 import 'package:attendance_check/view/hub/view/qr/qr_generation_view.dart';
 import 'package:attendance_check/view/hub/view/services/disciplines_view.dart';
 import 'package:attendance_check/view/hub/view/services/group_list_view.dart';
@@ -29,6 +35,12 @@ abstract class NavigatorRouse {
   static const String tagUser = "/hub/magazine/subjectDetail";
   static const String qrGeneration = "/hub/qrGeneretion";
   static const String map = "/hub/map";
+  static const String adminUsers = "/hub/admin/users";
+  static const String adminGroups = "/hub/admin/groups";
+  static const String adminGroupSubjects = "/hub/admin/groups/subjects";
+  static const String adminSubjects = "/hub/admin/subjects";
+  static const String adminSchedule = "/hub/admin/schedule";
+  static const String adminLessons = "/hub/admin/schedule/lessons";
 }
 
 class NavigatorApp {
@@ -46,6 +58,18 @@ class NavigatorApp {
       GoRoute(path: NavigatorRouse.disciplines, builder: (context, state) => DisciplinesView()),
       GoRoute(path: NavigatorRouse.settings, builder: (context, state) => SettingsView()),
       GoRoute(path: NavigatorRouse.map, builder: (context, state) => MapView()),
+      GoRoute(path: NavigatorRouse.adminUsers, builder: (context, state) => AdminUsersView()),
+      GoRoute(path: NavigatorRouse.adminGroups, builder: (context, state) => AdminGroupsView()),
+      GoRoute(
+        path: NavigatorRouse.adminGroupSubjects,
+        builder: (context, state) => AdminGroupSubjectsView(group: state.extra as String),
+      ),
+      GoRoute(path: NavigatorRouse.adminSubjects, builder: (context, state) => AdminSubjectsView()),
+      GoRoute(path: NavigatorRouse.adminSchedule, builder: (context, state) => AdminScheduleView()),
+      GoRoute(
+        path: NavigatorRouse.adminLessons,
+        builder: (context, state) => AdminLessonsView(group: state.extra as String),
+      ),
       GoRoute(path: NavigatorRouse.magazine, builder: (context, state) => MagazineView()),
       GoRoute(
         path: NavigatorRouse.qrGeneration,

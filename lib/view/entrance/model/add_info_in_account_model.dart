@@ -1,5 +1,6 @@
 import 'package:attendance_check/models/user_app.dart';
 import 'package:attendance_check/utils/navigator_app.dart';
+import 'package:attendance_check/utils/validator.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:attendance_check/services/firebase_service.dart';
@@ -8,44 +9,29 @@ import 'package:go_router/go_router.dart';
 class AddInfoInAccountModel extends ChangeNotifier {
   final UserApp _userApp;
   final FirebaseService _firebaseService;
-  bool _isGroupFieldEnabled = true;
+  bool _isSaving = false;
 
   AddInfoInAccountModel(this._userApp, this._firebaseService) {
     loadUserData();
   }
 
   String get email => _userApp.email;
-  String get name => _userApp.name;
-  String get surname => _userApp.surname;
-  String get phoneNumber => _userApp.phoneNumber;
-  String? get group => _userApp.group;
-  String get userType => _userApp.rule;
-  bool get isGroupFieldEnabled => _isGroupFieldEnabled;
+  bool get isSaving => _isSaving;
 
   void setName(String value) {
-    _userApp.setName(value);
-    notifyListeners();
+    _userApp.setName(value.trim());
   }
 
   void setSurname(String value) {
-    _userApp.setSurname(value);
-    notifyListeners();
+    _userApp.setSurname(value.trim());
+  }
+
+  void setPatronymic(String value) {
+    _userApp.setPatronymic(value.trim());
   }
 
   void setPhoneNumber(String value) {
     _userApp.setPhoneNumber(value);
-    notifyListeners();
-  }
-
-  void setGroup(String value) {
-    _userApp.setGroup(value);
-    notifyListeners();
-  }
-
-  void setUserType(String value) {
-    _userApp.setRule(value);
-    _isGroupFieldEnabled = value != 'Преподователь';
-    notifyListeners();
   }
 
   void loadUserData() {
@@ -60,32 +46,29 @@ class AddInfoInAccountModel extends ChangeNotifier {
     context.go(NavigatorRouse.avtoriz);
   }
 
-  Future<void> saveUserData() async {
-    await _firebaseService.saveUserData(_userApp);
-  }
-
-  bool validateAndSave(BuildContext context) {
-    debugPrint(_userApp.rule);
-    if (_userApp.name.isEmpty ||
-        _userApp.surname.isEmpty ||
-        _userApp.phoneNumber.isEmpty ||
-        (_userApp.group == '' && _isGroupFieldEnabled)) {
-      _showErrorMessage(context, 'Пожалуйста, заполните все обязательные поля.');
-      return false;
+  // Роль и группу выдаёт администратор, при регистрации они пустые
+  Future<void> validateAndSave(BuildContext context) async {
+    final error = Validator.validateRussianName(_userApp.surname, 'Фамилия') ??
+        Validator.validateRussianName(_userApp.name, 'Имя') ??
+        Validator.validateRussianName(_userApp.patronymic, 'Отчество', required: false) ??
+        Validator.validatePhone(_userApp.phoneNumber);
+    if (error != null) {
+      Validator.showError(context, error);
+      return;
     }
-    debugPrint(_userApp.rule);
-    if (_userApp.rule == "Преподователь") {
-      debugPrint(_userApp.rule);
-      _userApp.setGroup('-');
-    }
-    saveUserData();
-    _goBack(context);
-    return true;
-  }
 
-  void _showErrorMessage(BuildContext context, String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message)),
-    );
+    _isSaving = true;
+    notifyListeners();
+    try {
+      _userApp.setRule('');
+      _userApp.setGroup('');
+      await _firebaseService.saveUserData(_userApp);
+      if (context.mounted) _goBack(context);
+    } catch (e) {
+      if (context.mounted) Validator.showError(context, 'Не удалось сохранить данные: $e');
+    } finally {
+      _isSaving = false;
+      notifyListeners();
+    }
   }
 }

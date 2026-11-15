@@ -1,3 +1,7 @@
+import 'package:attendance_check/models/group_subject.dart';
+import 'package:attendance_check/models/schedule_template.dart';
+import 'package:attendance_check/models/subject.dart';
+import 'package:attendance_check/models/subject_schedule.dart';
 import 'package:attendance_check/models/user_app.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -84,6 +88,7 @@ class FirebaseService {
       await _firestore.collection('users').doc(user.uid).set({
         'name': userApp.name,
         'surname': userApp.surname,
+        'patronymic': userApp.patronymic,
         'email': userApp.email,
         'phoneNumber': userApp.phoneNumber,
         'group': userApp.group,
@@ -252,5 +257,169 @@ class FirebaseService {
     return userStatus;
   }
 
+  // ===================== Администратор =====================
 
+  // Все пользователи вместе с uid
+  Future<List<UserApp>> getAllUsersWithIds() async {
+    final snapshot = await _firestore.collection('users').get();
+    return snapshot.docs.map((doc) => UserApp.fromMap(doc.data(), uid: doc.id)).toList();
+  }
+
+  Future<void> updateUserRoleAndGroup(String uid, String rule, String group) async {
+    await _firestore.collection('users').doc(uid).update({'rule': rule, 'group': group});
+  }
+
+  // ---- Группы: groups/{название} ----
+  Future<List<String>> getGroups() async {
+    final snapshot = await _firestore.collection('groups').get();
+    final groups = snapshot.docs.map((doc) => doc.id).toList();
+    groups.sort();
+    return groups;
+  }
+
+  // false, если такая группа уже есть
+  Future<bool> addGroup(String name) async {
+    final ref = _firestore.collection('groups').doc(name);
+    if ((await ref.get()).exists) return false;
+    await ref.set({'name': name});
+    return true;
+  }
+
+  Future<void> deleteGroup(String name) async {
+    await _firestore.collection('groups').doc(name).delete();
+  }
+
+  // ---- Предметы: subjects/{id} ----
+  Future<List<Subject>> getSubjects() async {
+    final snapshot = await _firestore.collection('subjects').get();
+    final subjects = snapshot.docs
+        .map((doc) => Subject(id: doc.id, title: doc.data()['title'] ?? ''))
+        .toList();
+    subjects.sort((a, b) => a.title.compareTo(b.title));
+    return subjects;
+  }
+
+  Future<void> addSubject(String title) async {
+    await _firestore.collection('subjects').add({'title': title});
+  }
+
+  Future<void> deleteSubject(String id) async {
+    await _firestore.collection('subjects').doc(id).delete();
+  }
+
+  // ---- Предмет у группы: group_subjects/{id} ----
+  Future<List<GroupSubject>> getGroupSubjects(String group) async {
+    final snapshot = await _firestore
+        .collection('group_subjects')
+        .where('group', isEqualTo: group)
+        .get();
+    return snapshot.docs.map((doc) => GroupSubject.fromMap(doc.id, doc.data())).toList();
+  }
+
+  Future<List<GroupSubject>> getGroupSubjectsForTeacher(String teacherUid) async {
+    final snapshot = await _firestore
+        .collection('group_subjects')
+        .where('teacherUid', isEqualTo: teacherUid)
+        .get();
+    return snapshot.docs.map((doc) => GroupSubject.fromMap(doc.id, doc.data())).toList();
+  }
+
+  Future<void> addGroupSubject(GroupSubject groupSubject) async {
+    await _firestore.collection('group_subjects').add(groupSubject.toMap());
+  }
+
+  Future<void> deleteGroupSubject(String id) async {
+    await _firestore.collection('group_subjects').doc(id).delete();
+  }
+
+  // ---- Шаблон расписания: schedule_templates/{группа} ----
+  Future<ScheduleTemplate> getScheduleTemplate(String group) async {
+    final doc = await _firestore.collection('schedule_templates').doc(group).get();
+    return ScheduleTemplate.fromMap(group, doc.data());
+  }
+
+  Future<void> saveScheduleTemplate(ScheduleTemplate template) async {
+    await _firestore.collection('schedule_templates').doc(template.group).set(template.toMap());
+  }
+
+  // ---- Конкретные занятия: schedules/{id} ----
+  Future<List<SubjectSchedule>> getLessonsForGroup(String group) async {
+    final snapshot = await _firestore
+        .collection('schedules')
+        .where('group', isEqualTo: group)
+        .get();
+    return snapshot.docs.map((doc) => SubjectSchedule.fromMap(doc.data(), id: doc.id)).toList();
+  }
+
+  Future<List<SubjectSchedule>> getLessonsForTeacher(String teacherUid) async {
+    final snapshot = await _firestore
+        .collection('schedules')
+        .where('teacherUid', isEqualTo: teacherUid)
+        .get();
+    return snapshot.docs.map((doc) => SubjectSchedule.fromMap(doc.data(), id: doc.id)).toList();
+  }
+
+  Future<void> deleteLesson(String id) async {
+    await _firestore.collection('schedules').doc(id).delete();
+  }
+
+  // Заполняет schedules по шаблону с даты [from] до конца семестра.
+  // Будущие занятия группы (с [from]) удаляются и создаются заново,
+  // прошедшие не трогаются, чтобы не потерять журнал. Возвращает число созданных занятий.
+  Future<int> generateSchedule(ScheduleTemplate template, DateTime from) async {
+    final start = template.semesterStart!;
+    final end = template.semesterEnd!;
+    final fromDay = DateTime(from.year, from.month, from.day);
+    var day = start.isAfter(fromDay) ? DateTime(start.year, start.month, start.day) : fromDay;
+
+    final ops = <void Function(WriteBatch)>[];
+
+    // Удаляем будущие занятия группы
+    final existing = await _firestore
+        .collection('schedules')
+        .where('group', isEqualTo: template.group)
+        .get();
+    for (final doc in existing.docs) {
+      final classTime = DateTime.tryParse(doc.data()['classTime'] ?? '');
+      if (classTime != null && !classTime.isBefore(fromDay)) {
+        ops.add((batch) => batch.delete(doc.reference));
+      }
+    }
+
+    // Создаём занятия на каждый день до конца семестра
+    var created = 0;
+    while (!day.isAfter(end)) {
+      final week = template.weekNumberFor(day);
+      for (final lesson in template.lessons) {
+        if (lesson.week != week || lesson.weekday != day.weekday) continue;
+        final t = pairStartTimes[lesson.pair - 1];
+        final classTime = DateTime(day.year, day.month, day.day, t[0], t[1]);
+        final ref = _firestore.collection('schedules').doc();
+        final data = {
+          'titleSubject': lesson.subjectTitle,
+          'typeActivity': lesson.typeActivity,
+          'fullNameTeacher': lesson.teacherName,
+          'teacherUid': lesson.teacherUid,
+          'group': template.group,
+          'subgroup': lesson.subgroup,
+          'numberAudit': lesson.numberAudit,
+          'classTime': classTime.toIso8601String(),
+          'pair': lesson.pair,
+        };
+        ops.add((batch) => batch.set(ref, data));
+        created++;
+      }
+      day = DateTime(day.year, day.month, day.day + 1);
+    }
+
+    // В одном batch не больше 500 операций
+    for (var i = 0; i < ops.length; i += 400) {
+      final batch = _firestore.batch();
+      for (final op in ops.skip(i).take(400)) {
+        op(batch);
+      }
+      await batch.commit();
+    }
+    return created;
+  }
 }

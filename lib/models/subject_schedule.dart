@@ -8,6 +8,9 @@ class SubjectSchedule{
   late final String _group;
   late final int _number_audit;
   late final DateTime _class_time;
+  // id документа в schedules и uid преподавателя (для новых, сгенерированных занятий)
+  String id = '';
+  String teacherUid = '';
 
   SubjectSchedule({
     required String titleSubject,
@@ -17,6 +20,8 @@ class SubjectSchedule{
     required String subgroup,
     required int numberAudit,
     required DateTime classTime,
+    this.id = '',
+    this.teacherUid = '',
   }) {
     _title_subject = titleSubject;
     _type_activity = typeActivity;
@@ -61,6 +66,21 @@ class SubjectSchedule{
   DateTime get classTime => _class_time;
   set classTime(DateTime time) {
     _class_time = time;
+  }
+
+  // Заполнение из документа schedules/{id}
+  static SubjectSchedule fromMap(Map<String, dynamic> doc, {String id = ''}) {
+    return SubjectSchedule(
+      titleSubject: doc['titleSubject'] ?? '',
+      typeActivity: doc['typeActivity'] ?? '',
+      fullNameTeacher: doc['fullNameTeacher'] ?? '',
+      group: doc['group'] ?? '',
+      subgroup: doc['subgroup'] ?? '',
+      numberAudit: doc['numberAudit'] ?? 0,
+      classTime: DateTime.parse(doc['classTime']),
+      id: id,
+      teacherUid: doc['teacherUid'] ?? '',
+    );
   }
 }
 

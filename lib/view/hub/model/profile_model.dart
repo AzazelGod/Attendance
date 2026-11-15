@@ -22,6 +22,7 @@ class ProfileModel extends ChangeNotifier {
       if (data != null) {
         _userApp.setName(data['name'] ?? '');
         _userApp.setSurname(data['surname'] ?? '');
+        _userApp.setPatronymic(data['patronymic'] ?? '');
         _userApp.setPhoneNumber(data['phoneNumber'] ?? '');
         _userApp.setEmail(data['email'] ?? '');
         _userApp.setGroup(data['group'] ?? '');
@@ -35,11 +36,13 @@ class ProfileModel extends ChangeNotifier {
     }
   }
 
-  String get name => ('${_userApp.name} ${_userApp.surname}').toString();
+  String get name => _userApp.fullName;
 
-  String get group => _userApp.group.toString();
+  String get group => _userApp.needsGroup
+      ? (_userApp.group.isEmpty ? 'не назначена' : _userApp.group)
+      : '—';
 
-  String get rule => _userApp.rule;
+  String get rule => _userApp.hasRule ? _userApp.rule : 'не назначена';
 
   String get email => _userApp.email;
 

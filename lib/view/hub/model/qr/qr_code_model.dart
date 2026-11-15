@@ -18,7 +18,6 @@ class QrCodeModel extends ChangeNotifier {
   DateTime _focusedDay = DateTime.now();
   DateTime _selectedDay = DateTime.now();
   CalendarFormat _calendarFormat = CalendarFormat.week;
-  final String _teacherSurname = 'Иванов В.В.';
 
   QrCodeModel() {
     _userApp = UserApp();
@@ -37,8 +36,7 @@ class QrCodeModel extends ChangeNotifier {
       final role = await firebaseService.getUserField('rule');
       if (role != null) {
         _userApp.setRule(role);
-        // В базе роль сохраняется как 'Преподователь'
-        _isTeacher = role == "Преподователь" || role == "Преподаватель";
+        _isTeacher = _userApp.isTeacher;
         if (_isTeacher) {
           await getTeacherSchedule();
         }
@@ -54,19 +52,11 @@ class QrCodeModel extends ChangeNotifier {
       _isLoading = true;
       notifyListeners();
 
-      final data = await firebaseService.getScheduleForFullnameTeacher(_teacherSurname);
-      if (data != null) {
-        _list = data.map((doc) {
-          return SubjectSchedule(
-            titleSubject: doc['titleSubject'] ?? '',
-            typeActivity: doc['typeActivity'] ?? '',
-            fullNameTeacher: doc['fullNameTeacher'] ?? '',
-            group: doc['group'] ?? '',
-            subgroup: doc['subgroup'] ?? '',
-            numberAudit: doc['numberAudit'] ?? 0,
-            classTime: DateTime.parse(doc['classTime']),
-          );
-        }).toList();
+      // Только занятия, к которым администратор привязал этого преподавателя
+      final uid = firebaseService.getCurrentUser()?.uid;
+      if (uid != null) {
+        _list = await firebaseService.getLessonsForTeacher(uid);
+        _list.sort((a, b) => a.classTime.compareTo(b.classTime));
       }
     } catch (e) {
       debugPrint('Ошибка при загрузке расписания: $e');

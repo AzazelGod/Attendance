@@ -61,6 +61,27 @@ class ServicesModel extends ChangeNotifier {
   }
 
   bool get isTeacher {
-    return _userApp.rule == "Преподователь";
+    return _userApp.isTeacher;
+  }
+
+  bool get isAdmin {
+    return _userApp.isAdmin;
+  }
+
+  // ---- Разделы администратора ----
+  void goAdminUsers(BuildContext context) {
+    context.push(NavigatorRouse.adminUsers);
+  }
+
+  void goAdminGroups(BuildContext context) {
+    context.push(NavigatorRouse.adminGroups);
+  }
+
+  void goAdminSubjects(BuildContext context) {
+    context.push(NavigatorRouse.adminSubjects);
+  }
+
+  void goAdminSchedule(BuildContext context) {
+    context.push(NavigatorRouse.adminSchedule);
   }
 }

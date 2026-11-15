@@ -39,7 +39,33 @@ class _DataEntryWidget extends StatelessWidget {
             childAspectRatio: 1.5,
           ),
           children: [
-            if (!model.isTeacher)
+            if (model.isAdmin) ...[
+              ServiceCard(
+                color: Colors.indigo,
+                icon: Icons.manage_accounts_outlined,
+                label: 'Пользователи',
+                onTap: () => model.goAdminUsers(context),
+              ),
+              ServiceCard(
+                color: Colors.green,
+                icon: Icons.groups_outlined,
+                label: 'Группы',
+                onTap: () => model.goAdminGroups(context),
+              ),
+              ServiceCard(
+                color: Colors.red,
+                icon: Icons.menu_book_outlined,
+                label: 'Предметы',
+                onTap: () => model.goAdminSubjects(context),
+              ),
+              ServiceCard(
+                color: Colors.purple,
+                icon: Icons.edit_calendar_outlined,
+                label: 'Расписание',
+                onTap: () => model.goAdminSchedule(context),
+              ),
+            ],
+            if (!model.isTeacher && !model.isAdmin)
               ServiceCard(
                 color: Colors.purple,
                 icon: Icons.schedule,
@@ -52,19 +78,20 @@ class _DataEntryWidget extends StatelessWidget {
               label: 'Инструкция',
               onTap: () => model.goInstructions(context),
             ),
-            if (!model.isTeacher)
+            if (!model.isTeacher && !model.isAdmin)
               ServiceCard(
                 color: Colors.green,
                 icon: Icons.group,
                 label: 'Список группы',
                 onTap: () => model.goGroupList(context),
               ),
-            ServiceCard(
-              color: Colors.red,
-              icon: Icons.assessment,
-              label: 'Дисциплины',
-              onTap: () => model.goDisciplines(context),
-            ),
+            if (!model.isAdmin)
+              ServiceCard(
+                color: Colors.red,
+                icon: Icons.assessment,
+                label: 'Дисциплины',
+                onTap: () => model.goDisciplines(context),
+              ),
             ServiceCard(
               color: Colors.black12,
               icon: Icons.settings_outlined,
