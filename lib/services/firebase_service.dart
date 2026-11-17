@@ -211,20 +211,24 @@ class FirebaseService {
     }
   }
 
-  // Метод для сохранения статуса пользователей в Firestore
+  // Метод для сохранения статуса пользователей в Firestore.
+  // Пустой статус = «не отмечен», такая запись удаляется.
   Future<void> saveUserStatusToFirestore(
       String userGroup, String subject, String date, DateTime classTime, List<UserApp> users, Map<String, String> userStatus) async {
     for (var user in users) {
-      await _firestore
+      final ref = _firestore
           .collection('magazine')
           .doc(userGroup)
           .collection(subject)
           .doc(date)
           .collection(classTime.toString())
-          .doc(user.email)
-          .set({
-        'status': userStatus[user.email],
-      });
+          .doc(user.email);
+      final status = userStatus[user.email] ?? '';
+      if (status.isEmpty) {
+        await ref.delete();
+      } else {
+        await ref.set({'status': status});
+      }
     }
   }
 
@@ -245,10 +249,11 @@ class FirebaseService {
             .doc(user.email)
             .get();
 
+        // Нет записи — студент ещё не отмечен (не отсканировал QR)
         if (doc.exists) {
-          userStatus[user.email] = doc.data()?['status'] ?? '+';
+          userStatus[user.email] = doc.data()?['status'] ?? '';
         } else {
-          userStatus[user.email] = '+';
+          userStatus[user.email] = '';
         }
       }
     } catch (e) {

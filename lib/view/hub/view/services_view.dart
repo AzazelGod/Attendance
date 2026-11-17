@@ -104,7 +104,8 @@ class _DataEntryWidget extends StatelessWidget {
               label: 'Карта',
               onTap: () => model.goMap(context),
             ),
-            if (model.isStudentLeader && !model.isTeacher)
+            // Журнал: староста отмечает, студенты только смотрят
+            if (!model.isTeacher && !model.isAdmin)
               ServiceCard(
                 color: Colors.blue,
                 icon: Icons.chrome_reader_mode_outlined,
